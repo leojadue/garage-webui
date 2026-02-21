@@ -24,7 +24,7 @@ func ServeUI(mux *http.ServeMux) {
 	mux.Handle(basePath+"/", http.StripPrefix(basePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_path := path.Clean(r.URL.Path)[1:]
 
-		// Rewrite non-existing paths to index.html
+		// Rewrite non-existing paths to index.html (SPA fallback)
 		if _, err := fs.Stat(distFs, _path); err != nil {
 			index, _ := fs.ReadFile(distFs, "index.html")
 			html := string(index)
@@ -33,19 +33,39 @@ func ServeUI(mux *http.ServeMux) {
 			html = strings.ReplaceAll(html, "%BASE_PATH%", basePath)
 			html = addBasePath(html, basePath)
 
-			w.Header().Add("Content-Type", "text/html")
+			w.Header().Set("Content-Type", "text/html")
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(html))
 			return
 		}
 
-		// Add prefix to each /assets strings in js
+		// Serve index.html directly — never cache
+		if _path == "index.html" || _path == "" {
+			index, _ := fs.ReadFile(distFs, "index.html")
+			html := string(index)
+			html = strings.ReplaceAll(html, "%BASE_PATH%", basePath)
+			html = addBasePath(html, basePath)
+
+			w.Header().Set("Content-Type", "text/html")
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(html))
+			return
+		}
+
+		// Hashed assets (JS, CSS, images in /assets/) — cache immutably for 1 year
+		if strings.HasPrefix(_path, "assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+
+		// Add prefix to each /assets strings in js (when BASE_PATH is set)
 		if len(basePath) > 0 && strings.HasSuffix(_path, ".js") {
 			data, _ := fs.ReadFile(distFs, _path)
 			html := string(data)
 			html = strings.ReplaceAll(html, "assets/", basePath[1:]+"/assets/")
 
-			w.Header().Add("Content-Type", "text/javascript")
+			w.Header().Set("Content-Type", "text/javascript")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(html))
 			return
