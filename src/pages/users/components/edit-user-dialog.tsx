@@ -60,7 +60,7 @@ const EditUserDialog = ({ open, onClose, user }: Props) => {
             name="role"
             title="Role"
             render={(field) => (
-              <select {...field} className="select select-bordered w-full">
+              <select {...field} value={String(field.value)} className="select select-bordered w-full">
                 {(roles || []).map((role) => (
                   <option key={role.name} value={role.name}>
                     {role.name} — {role.description}
@@ -76,7 +76,7 @@ const EditUserDialog = ({ open, onClose, user }: Props) => {
             title="Active"
             render={(field) => (
               <Toggle
-                checked={field.value}
+                checked={Boolean(field.value)}
                 onChange={(e) => field.onChange(e.target.checked)}
                 color="primary"
               />

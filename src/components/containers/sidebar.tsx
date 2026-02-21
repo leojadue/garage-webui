@@ -47,7 +47,7 @@ const roleLevels: Record<string, number> = {
 const Sidebar = () => {
   const { pathname } = useLocation();
   const auth = useAuth();
-  const { role, isAdmin } = usePermission();
+  const { role } = usePermission();
 
   // Filter pages based on role. In non-multi-user mode show all except Users.
   const pages = allPages.filter((page) => {
