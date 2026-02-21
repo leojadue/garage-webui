@@ -36,6 +36,11 @@ func HandleApiRouter() *http.ServeMux {
 	zipDl := &ZipDownload{}
 	router.HandleFunc("GET /zip/{bucket}", zipDl.DownloadAsZip)
 
+	lifecycle := &Lifecycle{}
+	router.HandleFunc("GET /lifecycle/{bucket}", lifecycle.GetLifecycleConfig)
+	router.HandleFunc("POST /lifecycle/{bucket}", lifecycle.SetLifecycleConfig)
+	router.HandleFunc("DELETE /lifecycle/{bucket}", lifecycle.DeleteLifecycleConfig)
+
 	// Proxy request to garage api endpoint
 	router.HandleFunc("/", ProxyHandler)
 

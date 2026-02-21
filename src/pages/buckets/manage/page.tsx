@@ -5,6 +5,7 @@ import TabView, { Tab } from "@/components/containers/tab-view";
 import {
   ChartLine,
   CircleXIcon,
+  Clock,
   FolderSearch,
   LockKeyhole,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import OverviewTab from "./overview/overview-tab";
 import PermissionsTab from "./permissions/permissions-tab";
 import MenuButton from "./components/menu-button";
 import BrowseTab from "./browse/browse-tab";
+import LifecycleTab from "./lifecycle/lifecycle-tab";
 import { BucketContext } from "./context";
 import { Alert, Loading } from "react-daisyui";
 
@@ -33,6 +35,12 @@ const tabs: Tab[] = [
     title: "Browse",
     icon: FolderSearch,
     Component: BrowseTab,
+  },
+  {
+    name: "lifecycle",
+    title: "Lifecycle",
+    icon: Clock,
+    Component: LifecycleTab,
   },
 ];
 
