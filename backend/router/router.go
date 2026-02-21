@@ -17,8 +17,8 @@ func HandleApiRouter(s *store.Store) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	auth := &Auth{Store: s}
-	// Public routes (no auth required)
-	mux.HandleFunc("POST /auth/login", auth.Login)
+	// Public routes (no auth required) — login is rate-limited
+	mux.HandleFunc("POST /auth/login", middleware.RateLimit(auth.Login))
 	mux.HandleFunc("GET /auth/status", auth.GetStatus)
 
 	// All other routes require authentication
@@ -69,13 +69,13 @@ func HandleApiRouter(s *store.Store) *http.ServeMux {
 		router.Handle("DELETE /users/{id}", wrapRole("admin", users.Delete))
 	}
 
-	// Read-only Garage Admin API proxy routes (viewer accessible)
-	// These are needed for bucket management pages and dashboard.
-	router.HandleFunc("GET /v2/ListBuckets", ProxyHandler)
-	router.HandleFunc("GET /v2/GetBucketInfo", ProxyHandler)
-	router.HandleFunc("GET /v2/GetClusterStatus", ProxyHandler)
-	router.HandleFunc("GET /v2/GetClusterHealth", ProxyHandler)
-	router.HandleFunc("GET /v2/GetClusterLayout", ProxyHandler)
+	// Read-only Garage Admin API proxy routes (viewer accessible).
+	// SafeProxyHandler strips showSecretKey to prevent secret key leakage.
+	router.HandleFunc("GET /v2/ListBuckets", SafeProxyHandler)
+	router.HandleFunc("GET /v2/GetBucketInfo", SafeProxyHandler)
+	router.HandleFunc("GET /v2/GetClusterStatus", SafeProxyHandler)
+	router.HandleFunc("GET /v2/GetClusterHealth", SafeProxyHandler)
+	router.HandleFunc("GET /v2/GetClusterLayout", SafeProxyHandler)
 
 	// Catch-all proxy to Garage Admin API (admin only)
 	router.Handle("/", wrapRole("admin", ProxyHandler))

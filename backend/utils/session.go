@@ -26,9 +26,15 @@ type SessionManager struct {
 
 var Session *SessionManager
 
+func configureSessionDefaults(sessMgr *scs.SessionManager) {
+	sessMgr.Lifetime = 24 * time.Hour
+	sessMgr.Cookie.SameSite = http.SameSiteStrictMode
+	sessMgr.Cookie.Secure = GetEnv("COOKIE_SECURE", "true") != "false"
+}
+
 func InitSessionManager() *scs.SessionManager {
 	sessMgr := scs.New()
-	sessMgr.Lifetime = 24 * time.Hour
+	configureSessionDefaults(sessMgr)
 	Session = &SessionManager{mgr: sessMgr}
 	return sessMgr
 }
@@ -36,7 +42,7 @@ func InitSessionManager() *scs.SessionManager {
 // InitSessionManagerWithStore creates a session manager backed by a custom store.
 func InitSessionManagerWithStore(store scs.Store) *scs.SessionManager {
 	sessMgr := scs.New()
-	sessMgr.Lifetime = 24 * time.Hour
+	configureSessionDefaults(sessMgr)
 	sessMgr.Store = store
 	Session = &SessionManager{mgr: sessMgr}
 	return sessMgr
@@ -52,6 +58,11 @@ func (s *SessionManager) Set(r *http.Request, key string, value interface{}) {
 
 func (s *SessionManager) Clear(r *http.Request) error {
 	return s.mgr.Clear(r.Context())
+}
+
+// RenewToken regenerates the session token to prevent session fixation attacks.
+func (s *SessionManager) RenewToken(r *http.Request) error {
+	return s.mgr.RenewToken(r.Context())
 }
 
 // SetUser stores a SessionUser in the session.

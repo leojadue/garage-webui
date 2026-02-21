@@ -41,6 +41,12 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Regenerate session token to prevent session fixation
+		if err := utils.Session.RenewToken(r); err != nil {
+			utils.ResponseErrorStatus(w, errors.New("internal error"), 500)
+			return
+		}
+
 		utils.Session.SetUser(r, utils.SessionUser{
 			ID:       user.ID,
 			Username: user.Username,
@@ -66,6 +72,12 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 
 	if strings.TrimSpace(body.Username) != userPass[0] || bcrypt.CompareHashAndPassword([]byte(userPass[1]), []byte(body.Password)) != nil {
 		utils.ResponseErrorStatus(w, errors.New("invalid username or password"), 401)
+		return
+	}
+
+	// Regenerate session token to prevent session fixation
+	if err := utils.Session.RenewToken(r); err != nil {
+		utils.ResponseErrorStatus(w, errors.New("internal error"), 500)
 		return
 	}
 

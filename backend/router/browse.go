@@ -126,9 +126,18 @@ func (b *Browse) GetOneObject(w http.ResponseWriter, r *http.Request) {
 	keys := strings.Split(key, "/")
 
 	if download {
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", keys[len(keys)-1]))
+		// Sanitize filename: remove control chars, quotes, backslashes for RFC 6266 compliance
+		filename := keys[len(keys)-1]
+		filename = strings.Map(func(r rune) rune {
+			if r < 0x20 || r == '"' || r == '\\' {
+				return '_'
+			}
+			return r
+		}, filename)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	} else if thumbnail {
-		body, err := io.ReadAll(object.Body)
+		// Limit read to 10 MB to prevent unbounded memory consumption
+		body, err := io.ReadAll(io.LimitReader(object.Body, 10<<20))
 		if err != nil {
 			utils.ResponseError(w, err)
 			return

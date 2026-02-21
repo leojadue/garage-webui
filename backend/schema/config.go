@@ -15,6 +15,18 @@ type Admin struct {
 	MetricsToken string `json:"metrics_token" toml:"metrics_token"`
 }
 
+// SafeConfig exposes only non-secret configuration to authenticated users.
+type SafeConfig struct {
+	S3API S3API    `json:"s3_api"`
+	S3Web S3Web    `json:"s3_web"`
+	Admin SafeAdmin `json:"admin"`
+}
+
+// SafeAdmin omits tokens, exposing only the bind address.
+type SafeAdmin struct {
+	APIBindAddr string `json:"api_bind_addr"`
+}
+
 type S3API struct {
 	APIBindAddr string `json:"api_bind_addr" toml:"api_bind_addr"`
 	RootDomain  string `json:"root_domain" toml:"root_domain"`

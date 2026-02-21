@@ -1,23 +1,42 @@
-# Garage WebUI
+# Garage WebUI — Extensions
 
 [![image](misc/img/garage-webui.png)](misc/img/garage-webui.png)
 
-A **production-ready** web console for [Garage](https://garagehq.deuxfleurs.fr/), the self-hosted S3-compatible distributed object storage. Built with Go and React, packaged as a single ~20 MB container image.
+Extensions for [garage-webui](https://github.com/khairul169/garage-webui), the web console for [Garage](https://garagehq.deuxfleurs.fr/) S3-compatible distributed object storage. Adds multi-user RBAC, presigned URL sharing, file preview, object operations, and security hardening. Packaged as a single ~20 MB container image.
 
-> **Author:** [@leojadue](https://github.com/leojadue) — XGOLD IT
+> **Extensions by:** [@leojadue](https://github.com/leojadue) — XGOLD IT
+>
+> **Original project:** [khairul169/garage-webui](https://github.com/khairul169/garage-webui)
 
 ---
 
-## Highlights
+## Original vs Extensions
 
-- **Multi-user RBAC** — Admin, editor, and viewer roles with defense-in-depth enforcement
-- **S3 presigned URL sharing** — Time-limited signed links, no wildcard DNS needed
-- **Full object management** — Rename, move across buckets, bulk delete, folder upload
-- **Inline file preview** — Images, text, PDF rendered in-browser
-- **Lifecycle rules UI** — Create, toggle, and delete S3 lifecycle policies
-- **Enhanced dashboard** — Cluster health gauges, per-bucket storage analytics
-- **20+ themes** — DaisyUI theme switcher, mobile responsive
-- **Zero-CGO Docker** — Pure Go SQLite, `scratch` base image, runs on any arch
+| Feature | Original | Extensions |
+|---------|:--------:|:----------:|
+| Dashboard with cluster health | Basic | Enhanced gauges + per-bucket analytics |
+| Bucket listing | Yes | Yes |
+| Object browser | Yes | Yes |
+| Upload / download files | Yes | Yes |
+| Create folders | Yes | Yes |
+| **Multi-user RBAC (admin/editor/viewer)** | — | Yes |
+| **User management (create, edit, deactivate)** | — | Yes |
+| **Presigned URL sharing (time-limited)** | — | Yes |
+| **File preview (images, text, PDF)** | — | Yes |
+| **Image thumbnails** | — | Yes |
+| **Rename objects** | — | Yes |
+| **Move across buckets/folders** | — | Yes |
+| **Bulk delete (select-all, checkbox)** | — | Yes |
+| **Folder upload (preserve structure)** | — | Yes |
+| **Download folder as ZIP** | — | Yes |
+| **Lifecycle rules UI (create, toggle, delete)** | — | Yes |
+| **Session persistence (SQLite-backed)** | — | Yes |
+| **Last-admin protection** | — | Yes |
+| **Security hardening** (rate limiting, CSRF, session fixation) | — | Yes |
+| Theme support | Yes | 20+ DaisyUI themes |
+| Mobile responsive | Partial | Full responsive |
+| Docker image | Standard | `scratch` base (~20 MB) |
+| Compatible with Garage | v0.9+ | v1.x — v2.2+ |
 
 ---
 
@@ -135,6 +154,17 @@ Full GUI for S3 lifecycle management — create, edit, toggle, and delete rules.
 
 Cluster health gauges, per-bucket storage analytics (bytes, object count, percentage), and a bucket summary table — all at a glance.
 
+### Security Hardening
+
+- Rate limiting on login endpoint (per-IP)
+- Session token regeneration on login (anti-fixation)
+- `SameSite=Strict` + `Secure` session cookies
+- Config endpoint redacted (no admin tokens exposed)
+- Proxy routes sanitized (`showSecretKey` stripped)
+- Client headers stripped before Admin API proxy
+- Content-Disposition filename sanitization (RFC 6266)
+- Thumbnail memory bounded (10 MB limit)
+
 ---
 
 ## Quick Start
@@ -204,6 +234,7 @@ Remove `DATA_DIR` and the volume to run without the user database — a single u
 | `S3_ENDPOINT_URL` | from garage.toml | **Public** S3 endpoint for presigned URLs |
 | `AUTH_USER_PASS` | _(disabled)_ | `username:bcrypt_hash` — enables authentication |
 | `DATA_DIR` | _(disabled)_ | Data directory path — enables multi-user RBAC |
+| `COOKIE_SECURE` | `true` | Set to `false` for local dev without HTTPS |
 | `BASE_PATH` | _(empty)_ | URL prefix for reverse proxy setups |
 | `PORT` | `3909` | HTTP listen port |
 | `HOST` | `0.0.0.0` | Listen address |
@@ -225,14 +256,15 @@ Remove `DATA_DIR` and the volume to run without the user database — a single u
 ┌───────────────────────┐     ┌───────────────────────┐
 │    Go Backend :3909   │     │   Garage S3 :3900     │
 │                       │     │   AWS Sig V4 auth     │
-│  Auth Middleware ──────┤     └───────────────────────┘
+│  Rate Limiter ─────────┤     └───────────────────────┘
+│  Auth Middleware ──────┤
 │  Role Middleware ──────┤
 │  SQLite Sessions ──────┤
 │                       │
 │  /api/browse/   ──────┤── S3 SDK
 │  /api/presign/  ──────┤── S3 SDK (presign)
 │  /api/users/    ──────┤── SQLite
-│  /api/*         ──────┤── Reverse proxy → Admin API
+│  /api/*         ──────┤── Safe proxy → Admin API
 └───────────────────────┘
          │
          ▼
@@ -261,7 +293,7 @@ Remove `DATA_DIR` and the volume to run without the user database — a single u
 | Frontend | React 18, TypeScript 5.5, Vite 5, Tailwind CSS 3, DaisyUI 4, TanStack React Query |
 | Backend | Go 1.23, AWS SDK v2, `modernc.org/sqlite` (pure Go) |
 | Sessions | `alexedwards/scs/v2` — SQLite-backed, persistent |
-| Auth | bcrypt hashing, HTTP-only session cookies |
+| Auth | bcrypt hashing, HTTP-only session cookies, rate limiting |
 | Container | Multi-stage build → `scratch` base (~20 MB) |
 
 ---
@@ -272,7 +304,7 @@ Remove `DATA_DIR` and the volume to run without the user database — a single u
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/login` | Authenticate |
+| POST | `/api/auth/login` | Authenticate (rate-limited) |
 | GET | `/api/auth/status` | Session status + user info |
 
 ### Viewer
@@ -306,4 +338,4 @@ Remove `DATA_DIR` and the volume to run without the user database — a single u
 
 ## License
 
-[MIT License](LICENSE). Significantly enhanced fork of [khairul169/garage-webui](https://github.com/khairul169/garage-webui) — adding multi-user RBAC, presigned URL sharing, object rename/move/bulk-delete, inline file preview, lifecycle rules UI, enhanced dashboard analytics, ZIP downloads, folder uploads, and 20+ themes.
+[MIT License](LICENSE). Extended fork of [khairul169/garage-webui](https://github.com/khairul169/garage-webui).
