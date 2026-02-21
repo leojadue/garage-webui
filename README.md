@@ -1,209 +1,274 @@
-# Garage Web UI
+# Garage WebUI — XGOLD IT Fork
 
 [![image](misc/img/garage-webui.png)](misc/img/garage-webui.png)
 
-A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-hosted, S3-compatible, distributed object storage service.
+A customized admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-hosted, S3-compatible, distributed object storage service.
 
-[ [Screenshots](misc/SCREENSHOTS.md) | [Install Garage](https://garagehq.deuxfleurs.fr/documentation/quick-start/) | [Garage Git](https://git.deuxfleurs.fr/Deuxfleurs/garage) ]
+> **Fork of:** [khairul169/garage-webui](https://github.com/khairul169/garage-webui) (v1.1.0)
+>
+> **Upstream version:** 1.1.0 (commit `ee420fb`)
+>
+> **Fork maintainer:** [@leojadue](https://github.com/leojadue) — XGOLD IT
 
-## Features
+[ [Upstream Project](https://github.com/khairul169/garage-webui) | [Install Garage](https://garagehq.deuxfleurs.fr/documentation/quick-start/) | [Garage Docs](https://garagehq.deuxfleurs.fr/documentation/) | [Screenshots](misc/SCREENSHOTS.md) ]
 
-- Garage health status
+---
+
+## Why This Fork?
+
+The upstream garage-webui is an excellent tool, but the **Share** feature generates static URLs that require wildcard DNS (`*.web.domain.com`) and S3 website access to be enabled on each bucket. This is impractical for many deployments.
+
+This fork replaces the share mechanism with **S3 Presigned URLs** — time-limited, cryptographically signed links that work through the standard S3 API endpoint. No wildcard DNS, no website access configuration needed.
+
+---
+
+## Changes From Upstream
+
+### 1. S3 Presigned URL Sharing (`be64941`)
+
+**Problem:** The original share dialog generates static URLs like `http://bucket.web.domain.com/file.svg` which require:
+- Wildcard DNS record (`*.web.domain.com`)
+- Wildcard SSL certificate (DNS challenge)
+- Website access enabled per bucket
+
+**Solution:** New backend endpoint that generates S3 presigned URLs with configurable expiration.
+
+**Backend — New file:** `backend/router/presign.go`
+- `GET /api/presign/{bucket}/{key...}?expires=3600`
+- Generates AWS Signature V4 presigned URLs via `s3.NewPresignClient`
+- Expiration configurable: 15min to 7 days (default: 1 hour, max: 7 days)
+- Uses existing per-bucket credential management (no extra config needed)
+- Returns JSON: `{ url, expiresIn, method }`
+
+**Frontend — Rewritten:** `src/pages/buckets/manage/browse/share-dialog.tsx`
+- 7 expiration options: 15 minutes, 1 hour, 6 hours, 12 hours, 24 hours, 3 days, 7 days
+- Auto-generates presigned URL when dialog opens
+- **Copy link** button (clipboard)
+- **Open in browser** button (new tab)
+- Loading state and error handling
+- No more "website access required" warning — works on any bucket
+
+**Route registration:** `backend/router/router.go` — added 1 line
+
+```
+GET /api/presign/{bucket}/{key...}  →  Presign.GetPresignedURL
+```
+
+### 2. HTTPS Protocol Fix (`5f6b7d0`)
+
+Changed hardcoded `http://` to `https://` in the share dialog URL construction. This fix is now superseded by the presigned URL feature but was the initial improvement.
+
+---
+
+## Upstream Features (Unchanged)
+
+- Garage health status dashboard
 - Cluster & layout management
 - Create, update, or view bucket information
-- Integrated objects/bucket browser
+- Integrated objects/bucket browser with upload/download
 - Create & assign access keys
+- Authentication via bcrypt password hash
+- Thumbnail generation for images
+- Mobile-responsive UI
+
+---
 
 ## Installation
 
-The Garage Web UI is available as a single executable binary and docker image. You can install it using the command line or with Docker Compose.
-
-### Docker CLI
-
-```sh
-$ docker run -p 3909:3909 -v ./garage.toml:/etc/garage.toml:ro --restart unless-stopped --name garage-webui khairul169/garage-webui:latest
-```
-
-### Docker Compose
-
-If you install Garage using Docker, you can install this web UI alongside Garage as follows:
+### Docker Compose (Recommended)
 
 ```yml
 services:
   garage:
-    image: dxflrs/garage:v2.0.0
+    image: dxflrs/garage:v2.2.0
     container_name: garage
     volumes:
       - ./garage.toml:/etc/garage.toml
-      - ./meta:/var/lib/garage/meta
-      - ./data:/var/lib/garage/data
+      - /mnt/data/garage/meta:/var/lib/garage/meta
+      - /mnt/data/garage/data:/var/lib/garage/data
     restart: unless-stopped
     ports:
-      - 3900:3900
-      - 3901:3901
-      - 3902:3902
-      - 3903:3903
+      - "3900:3900"   # S3 API
+      - "3902:3902"   # S3 Web
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3903/v2/GetClusterHealth"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-  webui:
-    image: khairul169/garage-webui:latest
+  garage-webui:
+    image: leojadue/garage-webui:latest
     container_name: garage-webui
     restart: unless-stopped
+    ports:
+      - "3909:3909"
     volumes:
       - ./garage.toml:/etc/garage.toml:ro
-    ports:
-      - 3909:3909
     environment:
       API_BASE_URL: "http://garage:3903"
-      S3_ENDPOINT_URL: "http://garage:3900"
+      API_ADMIN_KEY: "${GARAGE_ADMIN_TOKEN}"
+      S3_ENDPOINT_URL: "https://gs3.yourdomain.com"   # Public S3 endpoint for presigned URLs
+      AUTH_USER_PASS: "${GARAGE_WEBUI_AUTH}"
+    depends_on:
+      garage:
+        condition: service_healthy
 ```
 
-### Without Docker
+> **Important:** `S3_ENDPOINT_URL` must be the **publicly accessible** S3 API URL (not the internal Docker hostname). Presigned URLs are generated with this endpoint and must be reachable by the end user's browser.
 
-Get the latest binary from the [release page](https://github.com/khairul169/garage-webui/releases/latest) according to your OS architecture. For example:
+### Docker CLI
 
 ```sh
-$ wget -O garage-webui https://github.com/khairul169/garage-webui/releases/download/1.1.0/garage-webui-v1.1.0-linux-amd64
-$ chmod +x garage-webui
-$ sudo cp garage-webui /usr/local/bin
+docker build -t leojadue/garage-webui:latest .
+
+docker run -p 3909:3909 \
+  -v ./garage.toml:/etc/garage.toml:ro \
+  -e API_BASE_URL="http://garage:3903" \
+  -e API_ADMIN_KEY="your-admin-token" \
+  -e S3_ENDPOINT_URL="https://gs3.yourdomain.com" \
+  -e AUTH_USER_PASS='admin:$2y$10$...' \
+  --restart unless-stopped \
+  --name garage-webui \
+  leojadue/garage-webui:latest
 ```
 
-Run the program with specified `garage.toml` config path.
+### Build From Source
 
 ```sh
-$ CONFIG_PATH=./garage.toml garage-webui
+git clone https://github.com/leojadue/garage-webui.git
+cd garage-webui && pnpm install
+cd backend && go mod download && cd ..
+pnpm run dev
 ```
 
-If you want to run the program at startup, you may want to create a systemd service.
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CONFIG_PATH` | No | `/etc/garage.toml` | Path to Garage configuration file |
+| `API_BASE_URL` | No* | From garage.toml | Garage Admin API endpoint (internal) |
+| `API_ADMIN_KEY` | No* | From garage.toml | Garage Admin API token |
+| `S3_ENDPOINT_URL` | No* | From garage.toml | S3 API endpoint (**must be publicly accessible** for presigned URLs) |
+| `S3_REGION` | No | `garage` | S3 region for signature |
+| `AUTH_USER_PASS` | No | _(disabled)_ | `username:bcrypt_hash` for login |
+| `BASE_PATH` | No | _(empty)_ | URL prefix for reverse proxy setups |
+| `PORT` | No | `3909` | HTTP listen port |
+
+> \* If `garage.toml` is mounted, these are read automatically. Env vars override the config file.
+
+---
+
+## API Endpoints
+
+### Existing (Upstream)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/login` | No | Login with username/password |
+| POST | `/api/auth/logout` | Yes | Logout (clear session) |
+| GET | `/api/auth/status` | Yes | Check auth status |
+| GET | `/api/config` | Yes | Get Garage configuration |
+| GET | `/api/buckets` | Yes | List all buckets |
+| GET | `/api/browse/{bucket}` | Yes | List objects in bucket |
+| GET | `/api/browse/{bucket}/{key}` | Yes | Get/view/download object |
+| PUT | `/api/browse/{bucket}/{key}` | Yes | Upload object |
+| DELETE | `/api/browse/{bucket}/{key}` | Yes | Delete object |
+| * | `/api/*` | Yes | Proxy to Garage Admin API |
+
+### Added by This Fork
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/presign/{bucket}/{key}?expires=N` | Yes | Generate presigned URL (N = seconds, max 604800) |
+
+**Presign response:**
+```json
+{
+  "url": "https://gs3.domain.com/bucket/key?X-Amz-Algorithm=AWS4-HMAC-SHA256&...",
+  "expiresIn": 3600,
+  "method": "GET"
+}
+```
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────┐
+│                   Browser                         │
+│  garage.domain.com:3909                           │
+└──────────┬──────────────────────────┬─────────────┘
+           │ WebUI (React)            │ Presigned URL
+           ▼                          ▼
+┌──────────────────┐       ┌──────────────────┐
+│  garage-webui    │       │   Garage S3 API  │
+│  (Go backend)    │       │   gs3.domain.com │
+│  Port 3909       │       │   Port 3900      │
+│                  │       │                  │
+│  /api/presign/   │───┐   │  AWS Sig V4 auth │
+│  /api/browse/    │   │   │  Path-style URLs │
+│  /api/buckets    │   │   └──────────────────┘
+└──────────────────┘   │
+        │              │
+        │ Admin API    │ S3 SDK (presign)
+        ▼              ▼
+┌──────────────────────────┐
+│      Garage Server       │
+│      Port 3903 (Admin)   │
+│      Port 3900 (S3 API)  │
+│      Port 3902 (S3 Web)  │
+└──────────────────────────┘
+```
+
+**Flow for presigned URLs:**
+1. User clicks **Share** on a file in the WebUI
+2. Frontend calls `GET /api/presign/{bucket}/{key}?expires=3600`
+3. Go backend fetches per-bucket S3 credentials from Garage Admin API
+4. Backend generates AWS Signature V4 presigned URL using `S3_ENDPOINT_URL`
+5. Frontend displays the URL with copy/open buttons
+6. Anyone with the URL can access the file directly via the S3 endpoint (no WebUI login needed)
+7. URL expires after the configured duration
+
+---
+
+## Syncing With Upstream
+
+This fork tracks [khairul169/garage-webui](https://github.com/khairul169/garage-webui) as `upstream`:
 
 ```sh
-$ sudo nano /etc/systemd/system/garage-webui.service
+# Add upstream remote (one-time)
+git remote add upstream https://github.com/khairul169/garage-webui.git
+
+# Sync with upstream
+git fetch upstream
+git merge upstream/main
+
+# Resolve conflicts if any (likely only in share-dialog.tsx)
 ```
 
-```
-[Unit]
-Description=Garage Web UI
-After=network.target
+### Files Modified From Upstream
 
-[Service]
-Environment="PORT=3919"
-Environment="CONFIG_PATH=/etc/garage.toml"
-ExecStart=/usr/local/bin/garage-webui
-Restart=always
+| File | Change Type | Conflict Risk |
+|------|-------------|---------------|
+| `backend/router/presign.go` | **New file** | None |
+| `backend/router/router.go` | +1 route line | Low |
+| `src/pages/buckets/manage/browse/share-dialog.tsx` | Rewritten | Medium |
+| `README.md` | Replaced | Low (intentional) |
 
-[Install]
-WantedBy=default.target
-```
+---
 
-Then reload and start the garage-webui service.
+## Tech Stack
 
-```sh
-$ sudo systemctl daemon-reload
-$ sudo systemctl enable --now garage-webui
-```
+- **Frontend:** React 18 + TypeScript 5.5 + Vite 5 + Tailwind CSS 3 + DaisyUI 4
+- **Backend:** Go 1.23 + AWS SDK v2 + TOML parser
+- **Container:** Multi-stage Docker build → `scratch` base (final image ~18MB)
+- **Auth:** Session-based (alexedwards/scs) with bcrypt password hashing
 
-### Configuration
+---
 
-To simplify installation, the Garage Web UI uses values from the Garage configuration, such as `rpc_public_addr`, `admin.admin_token`, `s3_web.root_domain`, etc.
+## License
 
-Example content of `config.toml`:
-
-```toml
-metadata_dir = "/var/lib/garage/meta"
-data_dir = "/var/lib/garage/data"
-db_engine = "sqlite"
-metadata_auto_snapshot_interval = "6h"
-
-replication_factor = 3
-compression_level = 2
-
-rpc_bind_addr = "[::]:3901"
-rpc_public_addr = "localhost:3901" # Required
-rpc_secret = "YOUR_RPC_SECRET_HERE"
-
-[s3_api]
-s3_region = "garage"
-api_bind_addr = "[::]:3900"
-root_domain = ".s3.domain.com"
-
-[s3_web] # Optional, if you want to expose bucket as web
-bind_addr = "[::]:3902"
-root_domain = ".web.domain.com"
-index = "index.html"
-
-[admin] # Required
-api_bind_addr = "[::]:3903"
-admin_token = "YOUR_ADMIN_TOKEN_HERE"
-metrics_token = "YOUR_METRICS_TOKEN_HERE"
-```
-
-However, if it fails to load, you can set `API_BASE_URL` & `API_ADMIN_KEY` environment variables instead.
-
-### Environment Variables
-
-Configurable envs:
-
-- `CONFIG_PATH`: Path to the Garage `config.toml` file. Defaults to `/etc/garage.toml`.
-- `BASE_PATH`: Base path or prefix for Web UI.
-- `API_BASE_URL`: Garage admin API endpoint URL.
-- `API_ADMIN_KEY`: Admin API key.
-- `S3_REGION`: S3 Region.
-- `S3_ENDPOINT_URL`: S3 Endpoint url.
-
-### Authentication
-
-Enable authentication by setting the `AUTH_USER_PASS` environment variable in the format `username:password_hash`, where `password_hash` is a bcrypt hash of the password.
-
-Generate the username and password hash using the following command:
-
-```bash
-htpasswd -nbBC 10 "YOUR_USERNAME" "YOUR_PASSWORD"
-```
-
-> If command 'htpasswd' is not found, install `apache2-utils` using your package manager.
-
-Then update your `docker-compose.yml`:
-
-```yml
-webui:
-  ....
-  environment:
-    AUTH_USER_PASS: "username:$2y$10$DSTi9o..."
-```
-
-### Running
-
-Once your instance of Garage Web UI is started, you can open the web UI at http://your-ip:3909. You can place it behind a reverse proxy to secure it with SSL.
-
-## Development
-
-This project is bootstrapped using TypeScript & React for the UI, and Go for backend. If you want to build it yourself or add additional features, follow these steps:
-
-### Setup
-
-```sh
-$ git clone https://github.com/khairul169/garage-webui.git
-$ cd garage-webui && pnpm install
-$ cd backend && pnpm install && cd ..
-```
-
-### Running
-
-Start both the client and server concurrently:
-
-```sh
-$ pnpm run dev # or npm run dev
-```
-
-Or start each instance separately:
-
-```sh
-$ pnpm run dev:client
-$ cd backend
-$ pnpm run dev:server
-```
-
-## Troubleshooting
-
-Make sure you are using the latest version of Garage. If the data cannot be loaded, please check whether your instance of Garage has the admin API enabled and the ports are accessible.
-
-If you encounter any problems, please do not hesitate to submit an issue [here](https://github.com/khairul169/garage-webui/issues). You can describe the problem and attach the error logs.
+Same as upstream — see [khairul169/garage-webui](https://github.com/khairul169/garage-webui) for license details.
