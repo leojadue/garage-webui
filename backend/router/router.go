@@ -69,6 +69,14 @@ func HandleApiRouter(s *store.Store) *http.ServeMux {
 		router.Handle("DELETE /users/{id}", wrapRole("admin", users.Delete))
 	}
 
+	// Read-only Garage Admin API proxy routes (viewer accessible)
+	// These are needed for bucket management pages and dashboard.
+	router.HandleFunc("GET /v2/ListBuckets", ProxyHandler)
+	router.HandleFunc("GET /v2/GetBucketInfo", ProxyHandler)
+	router.HandleFunc("GET /v2/GetClusterStatus", ProxyHandler)
+	router.HandleFunc("GET /v2/GetClusterHealth", ProxyHandler)
+	router.HandleFunc("GET /v2/GetClusterLayout", ProxyHandler)
+
 	// Catch-all proxy to Garage Admin API (admin only)
 	router.Handle("/", wrapRole("admin", ProxyHandler))
 
