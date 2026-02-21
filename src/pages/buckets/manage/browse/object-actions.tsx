@@ -5,6 +5,7 @@ import {
   DownloadIcon,
   EllipsisVertical,
   Eye,
+  FileArchive,
   FolderInput,
   Pencil,
   Share2,
@@ -44,6 +45,14 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
     window.open(API_URL + object.url + "?dl=1", "_blank");
   };
 
+  const onDownloadZip = () => {
+    const fullPrefix = prefix + object.objectKey;
+    window.open(
+      API_URL + `/zip/${bucketName}?prefix=${encodeURIComponent(fullPrefix)}`,
+      "_blank"
+    );
+  };
+
   const onDelete = () => {
     if (
       window.confirm(
@@ -64,6 +73,9 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
       <span className="w-full flex flex-row justify-end pr-2">
         {!isDirectory && (
           <Button icon={DownloadIcon} color="ghost" onClick={onDownload} />
+        )}
+        {isDirectory && (
+          <Button icon={FileArchive} color="ghost" onClick={onDownloadZip} title="Download as ZIP" />
         )}
 
         <Dropdown end vertical={end ? "top" : "bottom"}>
@@ -91,6 +103,11 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
                 }
               >
                 <Share2 size={16} /> Share
+              </Dropdown.Item>
+            )}
+            {isDirectory && (
+              <Dropdown.Item onClick={onDownloadZip}>
+                <FileArchive size={16} /> Download as ZIP
               </Dropdown.Item>
             )}
             <Dropdown.Item

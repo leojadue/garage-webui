@@ -33,6 +33,9 @@ func HandleApiRouter() *http.ServeMux {
 	objects := &Objects{}
 	router.HandleFunc("POST /objects/copy", objects.CopyObject)
 
+	zipDl := &ZipDownload{}
+	router.HandleFunc("GET /zip/{bucket}", zipDl.DownloadAsZip)
+
 	// Proxy request to garage api endpoint
 	router.HandleFunc("/", ProxyHandler)
 
