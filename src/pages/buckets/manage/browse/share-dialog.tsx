@@ -33,7 +33,7 @@ const ShareDialog = () => {
     setDomain(bucketName);
   }, [domains]);
 
-  const url = "http://" + domain + "/" + data?.prefix + data?.key;
+  const url = "https://" + domain + "/" + data?.prefix + data?.key;
 
   return (
     <Modal ref={dialogRef} open={isOpen} backdrop>
