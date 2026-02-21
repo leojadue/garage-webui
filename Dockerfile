@@ -12,12 +12,13 @@ RUN pnpm run build
 FROM golang:1.23 AS backend
 WORKDIR /app
 
-COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+COPY backend/go.mod ./
+COPY backend/go.sum* ./
+RUN go mod download || true
 
 COPY backend/ ./
 COPY --from=frontend /app/dist ./ui/dist
-RUN make
+RUN go mod tidy && make
 
 FROM scratch
 

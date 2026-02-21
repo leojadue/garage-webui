@@ -21,6 +21,7 @@ import { shareDialog } from "./share-dialog";
 import { renameDialog } from "./rename-dialog";
 import { moveDialog } from "./move-dialog";
 import { previewDialog } from "./preview-dialog";
+import { usePermission } from "@/hooks/usePermission";
 
 type Props = {
   prefix?: string;
@@ -32,6 +33,7 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
   const { bucketName } = useBucketContext();
   const queryClient = useQueryClient();
   const isDirectory = object.objectKey.endsWith("/");
+  const { canWrite } = usePermission();
 
   const deleteObject = useDeleteObject(bucketName, {
     onSuccess: () => {
@@ -110,34 +112,40 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
                 <FileArchive size={16} /> Download as ZIP
               </Dropdown.Item>
             )}
-            <Dropdown.Item
-              onClick={() =>
-                renameDialog.open({
-                  key: object.objectKey,
-                  prefix,
-                  isDirectory,
-                })
-              }
-            >
-              <Pencil size={16} /> Rename
-            </Dropdown.Item>
-            <Dropdown.Item
-              onClick={() =>
-                moveDialog.open({
-                  key: object.objectKey,
-                  prefix,
-                  isDirectory,
-                })
-              }
-            >
-              <FolderInput size={16} /> Move to...
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="text-error bg-error/10"
-              onClick={onDelete}
-            >
-              <Trash size={16} /> Delete
-            </Dropdown.Item>
+            {canWrite && (
+              <Dropdown.Item
+                onClick={() =>
+                  renameDialog.open({
+                    key: object.objectKey,
+                    prefix,
+                    isDirectory,
+                  })
+                }
+              >
+                <Pencil size={16} /> Rename
+              </Dropdown.Item>
+            )}
+            {canWrite && (
+              <Dropdown.Item
+                onClick={() =>
+                  moveDialog.open({
+                    key: object.objectKey,
+                    prefix,
+                    isDirectory,
+                  })
+                }
+              >
+                <FolderInput size={16} /> Move to...
+              </Dropdown.Item>
+            )}
+            {canWrite && (
+              <Dropdown.Item
+                className="text-error bg-error/10"
+                onClick={onDelete}
+              >
+                <Trash size={16} /> Delete
+              </Dropdown.Item>
+            )}
           </Dropdown.Menu>
         </Dropdown>
       </span>

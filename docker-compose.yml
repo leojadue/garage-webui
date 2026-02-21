@@ -19,8 +19,15 @@ services:
     restart: unless-stopped
     volumes:
       - ./garage.toml:/etc/garage.toml:ro
+      - webui-data:/data
     ports:
       - 3909:3909
     environment:
       API_BASE_URL: "http://garage:3903"
       S3_ENDPOINT_URL: "http://garage:3900"
+      # Uncomment to enable multi-user RBAC mode:
+      # DATA_DIR: "/data"
+      # AUTH_USER_PASS: "admin:$$2a$$10$$..."
+
+volumes:
+  webui-data:

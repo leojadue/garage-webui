@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../containers/sidebar";
 import { ArrowLeft, MenuIcon } from "lucide-react";
 import Button from "../ui/button";
+import RoleBadge from "../ui/role-badge";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { Drawer } from "react-daisyui";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,6 +54,7 @@ type HeaderProps = {
 const Header = ({ onSidebarOpen }: HeaderProps) => {
   const page = useContext(PageContext);
   const navigate = useNavigate();
+  const auth = useAuth();
 
   return (
     <header className="bg-base-100 px-4 md:px-8">
@@ -79,6 +81,13 @@ const Header = ({ onSidebarOpen }: HeaderProps) => {
         <h1 className="text-xl flex-1 truncate">
           {page?.title || "Dashboard"}
         </h1>
+
+        {auth.isMultiUser && auth.user && (
+          <div className="hidden md:flex items-center gap-2">
+            <span className="text-sm opacity-60">{auth.user.username}</span>
+            <RoleBadge role={auth.user.role} />
+          </div>
+        )}
 
         {page?.actions}
       </div>

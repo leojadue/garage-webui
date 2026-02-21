@@ -3,6 +3,7 @@ package router
 import (
 	"encoding/json"
 	"errors"
+	"khairul169/garage-webui/store"
 	"khairul169/garage-webui/utils"
 	"net/http"
 	"strings"
@@ -10,7 +11,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Auth struct{}
+type Auth struct {
+	Store *store.Store
+}
 
 func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -22,7 +25,40 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userPass := strings.Split(utils.GetEnv("AUTH_USER_PASS", ""), ":")
+	if c.Store != nil {
+		// DB mode: authenticate against users table
+		user, err := c.Store.GetUserByUsername(strings.TrimSpace(body.Username))
+		if err != nil {
+			utils.ResponseErrorStatus(w, errors.New("internal error"), 500)
+			return
+		}
+		if user == nil || !user.IsActive {
+			utils.ResponseErrorStatus(w, errors.New("invalid username or password"), 401)
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(body.Password)); err != nil {
+			utils.ResponseErrorStatus(w, errors.New("invalid username or password"), 401)
+			return
+		}
+
+		utils.Session.SetUser(r, utils.SessionUser{
+			ID:       user.ID,
+			Username: user.Username,
+			Role:     user.RoleName,
+		})
+		utils.ResponseSuccess(w, map[string]interface{}{
+			"authenticated": true,
+			"user": map[string]interface{}{
+				"id":       user.ID,
+				"username": user.Username,
+				"role":     user.RoleName,
+			},
+		})
+		return
+	}
+
+	// Legacy mode: check AUTH_USER_PASS env
+	userPass := strings.SplitN(utils.GetEnv("AUTH_USER_PASS", ""), ":", 2)
 	if len(userPass) < 2 {
 		utils.ResponseErrorStatus(w, errors.New("AUTH_USER_PASS not set"), 500)
 		return
@@ -34,8 +70,9 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.Session.Set(r, "authenticated", true)
-	utils.ResponseSuccess(w, map[string]bool{
+	utils.ResponseSuccess(w, map[string]interface{}{
 		"authenticated": true,
+		"user":          nil,
 	})
 }
 
@@ -45,20 +82,44 @@ func (c *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Auth) GetStatus(w http.ResponseWriter, r *http.Request) {
-	isAuthenticated := true
-	authSession := utils.Session.Get(r, "authenticated")
-	enabled := false
+	multiUser := c.Store != nil
 
-	if utils.GetEnv("AUTH_USER_PASS", "") != "" {
-		enabled = true
+	if multiUser {
+		sessionUser := utils.Session.GetUser(r)
+		authenticated := sessionUser != nil
+
+		resp := map[string]interface{}{
+			"enabled":       true,
+			"authenticated": authenticated,
+			"multi_user":    true,
+			"user":          nil,
+		}
+		if authenticated {
+			resp["user"] = map[string]interface{}{
+				"id":       sessionUser.ID,
+				"username": sessionUser.Username,
+				"role":     sessionUser.Role,
+			}
+		}
+		utils.ResponseSuccess(w, resp)
+		return
 	}
 
+	// Legacy mode
+	enabled := utils.GetEnv("AUTH_USER_PASS", "") != ""
+
+	// If auth is not enabled, everyone is considered authenticated (no-auth mode).
+	// If auth is enabled, check session for the "authenticated" key.
+	isAuthenticated := !enabled
+	authSession := utils.Session.Get(r, "authenticated")
 	if authSession != nil && authSession.(bool) {
 		isAuthenticated = true
 	}
 
-	utils.ResponseSuccess(w, map[string]bool{
+	utils.ResponseSuccess(w, map[string]interface{}{
 		"enabled":       enabled,
 		"authenticated": isAuthenticated,
+		"multi_user":    false,
+		"user":          nil,
 	})
 }

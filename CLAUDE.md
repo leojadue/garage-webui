@@ -7,10 +7,12 @@ Interfaz web para administrar [Garage](https://garagehq.deuxfleurs.fr/) S3-compa
 
 ## Stack
 
-- **Frontend:** React + TypeScript + Tailwind CSS
-- **Backend:** Go (proxy al Garage Admin API)
-- **Build:** Vite + pnpm
-- **Docker:** `khairul169/garage-webui:latest`
+- **Frontend:** React 18 + TypeScript + Tailwind CSS + DaisyUI + TanStack React Query
+- **Backend:** Go 1.23 (proxy al Garage Admin API + S3 operations via AWS SDK)
+- **Database:** SQLite via `modernc.org/sqlite` (pure Go, no CGO)
+- **Sessions:** `alexedwards/scs/v2` (SQLite-backed in multi-user mode, in-memory in legacy)
+- **Build:** Vite + pnpm (frontend), `CGO_ENABLED=0 go build` (backend)
+- **Docker:** Multi-stage build → `scratch` base image
 
 ## Relacion con Ecosistema
 
@@ -20,31 +22,84 @@ Este proyecto es la WebUI para el servicio Garage desplegado en OCI Free Tier:
 - **Dominio Garage S3:** `gs3.xgoldit.com`
 - **Dominio WebUI:** `garage.xgoldit.com`
 
-## Features Existentes (v1.1.0)
+## Architecture
 
+### Multi-User RBAC (DATA_DIR mode)
+
+```
+DATA_DIR set?
+  ├─ YES → SQLite mode: migrations, multi-user, role-based routes
+  │        First boot: auto-create admin user from AUTH_USER_PASS env
+  │        Session store: SQLite persistent
+  └─ NO  → Legacy mode: identical to upstream behavior
+           Single user from AUTH_USER_PASS env
+           Session store: in-memory (SCS default)
+```
+
+### 3 Fixed Roles
+- **admin** (level 3): Full access — cluster, keys, users, lifecycle write, Garage Admin API proxy
+- **editor** (level 2): Upload, delete, rename, move objects
+- **viewer** (level 1): Browse, download, preview, share (read-only)
+
+### Route → Role Mapping
+| Method | Route | Min Role |
+|--------|-------|----------|
+| GET | /browse/*, /presign/*, /zip/* | viewer |
+| PUT/DELETE | /browse/*, POST /objects/copy | editor |
+| POST/DELETE | /lifecycle/* | admin |
+| GET/POST/PUT/DELETE | /users/* | admin (except self password) |
+| / (proxy) | Garage Admin API | admin |
+
+### Key Files
+```
+backend/
+├── main.go                          # Entry point, dual mode init
+├── store/
+│   ├── db.go                        # SQLite init + migration runner
+│   ├── session_store.go             # SCS-compatible SQLite session store
+│   ├── user_store.go                # User CRUD + EnsureAdminFromEnv
+│   ├── role_store.go                # Role queries
+│   └── migrations/001_initial.sql   # Schema + seed roles
+├── models/user.go                   # User, Role, SessionUser types
+├── middleware/
+│   ├── auth.go                      # Dual-mode auth (DB or legacy)
+│   └── role.go                      # RequireRole middleware
+├── router/
+│   ├── router.go                    # Route registration with role gating
+│   ├── auth.go                      # Login/Logout/GetStatus (dual mode)
+│   └── users.go                     # User CRUD endpoints
+└── utils/session.go                 # Session manager with user context
+
+src/
+├── hooks/
+│   ├── useAuth.ts                   # Auth query (user, role, multi_user)
+│   └── usePermission.ts            # Role-based permission flags
+├── components/ui/
+│   ├── role-badge.tsx               # Role-colored badge
+│   └── permission-guard.tsx         # Conditional render by role
+└── pages/users/                     # Admin user management page
+```
+
+## Features Implemented
+
+### Core (from upstream)
 - Cluster health/status
 - Listar/crear/eliminar buckets
 - Object browser (subir/descargar/eliminar)
 - Crear/eliminar access keys
 - Asignar permisos key-bucket
 
-## Features Planificadas para el Fork
-
-Ordenadas por prioridad (valor + complejidad):
-
-| # | Feature | Complejidad | Valor |
-|---|---------|-------------|-------|
-| 1 | Generar presigned URL (share temporal) | Media | Muy alto |
-| 2 | Boton "Compartir" con link de descarga | Media | Muy alto |
-| 3 | Renombrar objeto (CopyObject+DeleteObject) | Baja | Alto |
-| 4 | Toggle bucket publico/privado | Baja | Alto |
-| 5 | Mover objeto entre buckets | Media | Alto |
-| 6 | Mover objeto entre "carpetas" virtuales | Media | Alto |
-| 7 | Eliminar multiples objetos (checkbox) | Baja | Medio |
-| 8 | Crear "carpeta" virtual | Baja | Medio |
-| 9 | Preview de archivos (img/txt/pdf) | Media | Medio |
-| 10 | Dashboard metricas con graficos | Media-Alta | Medio |
-| 11 | UI para reglas de expiracion | Media | Bajo |
+### Fork Additions (v2.0)
+1. Presigned URL generation (share temporal)
+2. Object rename (CopyObject+DeleteObject)
+3. Object move between buckets/folders
+4. Multi-select bulk delete
+5. Create virtual folders
+6. File preview (img/txt/pdf)
+7. Lifecycle rules management
+8. Download as ZIP
+9. Basic auth (AUTH_USER_PASS)
+10. **Multi-user RBAC** (admin/editor/viewer roles, SQLite)
 
 ## APIs Disponibles
 
@@ -62,23 +117,26 @@ Ordenadas por prioridad (valor + complejidad):
 - ListObjects, GetObject, PutObject, DeleteObject, CopyObject
 - Presigned URLs (S3 v4 signature)
 
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `API_BASE_URL` | Yes | Garage Admin API URL (e.g., `http://garage:3903`) |
+| `S3_ENDPOINT_URL` | Yes | Garage S3 API URL (e.g., `http://garage:3900`) |
+| `AUTH_USER_PASS` | No | `username:bcrypt_hash` for auth |
+| `DATA_DIR` | No | Enable multi-user mode (e.g., `/data`) |
+| `BASE_PATH` | No | URL prefix (e.g., `/webui`) |
+| `HOST` | No | Listen address (default: `0.0.0.0`) |
+| `PORT` | No | Listen port (default: `3909`) |
+
 ## Common Commands
 
 ```bash
-# Instalar dependencias frontend
-cd frontend && pnpm install
-
-# Dev mode frontend
-cd frontend && pnpm dev
-
-# Build frontend
-cd frontend && pnpm build
-
-# Build Go backend
-go build -o garage-webui .
-
 # Docker build
 docker build -t garage-webui .
+
+# Docker run (multi-user mode)
+docker run -e DATA_DIR=/data -e AUTH_USER_PASS='admin:$2a$10$...' -v webui-data:/data garage-webui
 ```
 
 ## Upstream Sync

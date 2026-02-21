@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { InputField } from "@/components/ui/input";
 import { useEffect } from "react";
+import { usePermission } from "@/hooks/usePermission";
 
 type Props = {
   prefix: string;
@@ -20,6 +21,7 @@ type Props = {
 const Actions = ({ prefix }: Props) => {
   const { bucketName } = useBucketContext();
   const queryClient = useQueryClient();
+  const { canWrite } = usePermission();
 
   const putObject = usePutObject(bucketName, {
     onSuccess: () => {
@@ -91,6 +93,8 @@ const Actions = ({ prefix }: Props) => {
     input.click();
     input.remove();
   };
+
+  if (!canWrite) return null;
 
   return (
     <>

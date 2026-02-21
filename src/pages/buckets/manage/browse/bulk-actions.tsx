@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { handleError } from "@/lib/utils";
 import { Modal } from "react-daisyui";
 import { useRef, useState } from "react";
+import { usePermission } from "@/hooks/usePermission";
 
 type Props = {
   selectedKeys: Set<string>;
@@ -20,6 +21,7 @@ const BulkActions = ({ selectedKeys, setSelectedKeys, prefix }: Props) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { canWrite } = usePermission();
 
   const deleteObject = useDeleteObject(bucketName, {
     onSuccess: () => {
@@ -28,7 +30,7 @@ const BulkActions = ({ selectedKeys, setSelectedKeys, prefix }: Props) => {
     onError: handleError,
   });
 
-  if (selectedKeys.size === 0) return null;
+  if (selectedKeys.size === 0 || !canWrite) return null;
 
   const count = selectedKeys.size;
   const hasFolders = [...selectedKeys].some((k) => k.endsWith("/"));
@@ -36,6 +38,7 @@ const BulkActions = ({ selectedKeys, setSelectedKeys, prefix }: Props) => {
   const onConfirmDelete = () => {
     setDeleting(true);
     let completed = 0;
+    let failed = 0;
     selectedKeys.forEach((key) => {
       const isDir = key.endsWith("/");
       deleteObject.mutate(
@@ -43,15 +46,25 @@ const BulkActions = ({ selectedKeys, setSelectedKeys, prefix }: Props) => {
         {
           onSuccess: () => {
             completed++;
-            if (completed === count) {
-              toast.success(`${count} item${count > 1 ? "s" : ""} deleted`);
+            if (completed + failed === count) {
+              if (failed > 0) {
+                toast.warning(`${completed} deleted, ${failed} failed`);
+              } else {
+                toast.success(`${count} item${count > 1 ? "s" : ""} deleted`);
+              }
               setSelectedKeys(new Set());
               setConfirmOpen(false);
               setDeleting(false);
             }
           },
           onError: () => {
-            setDeleting(false);
+            failed++;
+            if (completed + failed === count) {
+              toast.error(`${failed} of ${count} deletions failed`);
+              setSelectedKeys(new Set());
+              setConfirmOpen(false);
+              setDeleting(false);
+            }
           },
         }
       );

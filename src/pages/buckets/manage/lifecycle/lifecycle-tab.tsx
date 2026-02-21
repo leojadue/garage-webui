@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Alert, Loading } from "react-daisyui";
 import LifecycleRuleDialog from "./lifecycle-rule-dialog";
+import { usePermission } from "@/hooks/usePermission";
 
 export type LifecycleRule = {
   id: string;
@@ -35,6 +36,7 @@ const LifecycleTab = () => {
   const queryClient = useQueryClient();
   const [editingRule, setEditingRule] = useState<LifecycleRule | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { canManageLifecycle } = usePermission();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["lifecycle", bucketName],
@@ -113,10 +115,12 @@ const LifecycleTab = () => {
             Automatically expire or clean up objects based on rules
           </p>
         </div>
-        <Button size="sm" color="primary" onClick={onAddRule} className="gap-1">
-          <Plus size={14} />
-          Add Rule
-        </Button>
+        {canManageLifecycle && (
+          <Button size="sm" color="primary" onClick={onAddRule} className="gap-1">
+            <Plus size={14} />
+            Add Rule
+          </Button>
+        )}
       </div>
 
       {rules.length === 0 ? (
@@ -137,6 +141,7 @@ const LifecycleTab = () => {
               onDelete={() => onDeleteRule(rule.id)}
               onToggle={() => onToggleRule(rule.id)}
               saving={saveMutation.isPending}
+              canManage={canManageLifecycle}
             />
           ))}
         </div>
@@ -166,9 +171,10 @@ type RuleCardProps = {
   onDelete: () => void;
   onToggle: () => void;
   saving: boolean;
+  canManage: boolean;
 };
 
-const RuleCard = ({ rule, onEdit, onDelete, onToggle, saving }: RuleCardProps) => {
+const RuleCard = ({ rule, onEdit, onDelete, onToggle, saving, canManage }: RuleCardProps) => {
   const isEnabled = rule.status === "Enabled";
 
   return (
@@ -227,29 +233,31 @@ const RuleCard = ({ rule, onEdit, onDelete, onToggle, saving }: RuleCardProps) =
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            size="sm"
-            color="ghost"
-            onClick={onToggle}
-            disabled={saving}
-            title={isEnabled ? "Disable" : "Enable"}
-          >
-            {isEnabled ? <PowerOff size={14} /> : <Power size={14} />}
-          </Button>
-          <Button size="sm" color="ghost" onClick={onEdit} disabled={saving}>
-            <Pencil size={14} />
-          </Button>
-          <Button
-            size="sm"
-            color="ghost"
-            onClick={onDelete}
-            disabled={saving}
-            className="text-error"
-          >
-            <Trash size={14} />
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              size="sm"
+              color="ghost"
+              onClick={onToggle}
+              disabled={saving}
+              title={isEnabled ? "Disable" : "Enable"}
+            >
+              {isEnabled ? <PowerOff size={14} /> : <Power size={14} />}
+            </Button>
+            <Button size="sm" color="ghost" onClick={onEdit} disabled={saving}>
+              <Pencil size={14} />
+            </Button>
+            <Button
+              size="sm"
+              color="ghost"
+              onClick={onDelete}
+              disabled={saving}
+              className="text-error"
+            >
+              <Trash size={14} />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

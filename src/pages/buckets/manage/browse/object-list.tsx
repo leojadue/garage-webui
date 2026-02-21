@@ -15,6 +15,7 @@ import { useBucketContext } from "../context";
 import ObjectActions from "./object-actions";
 import GotoTopButton from "@/components/ui/goto-top-btn";
 import { previewDialog } from "./preview-dialog";
+import { usePermission } from "@/hooks/usePermission";
 
 type Props = {
   prefix?: string;
@@ -30,6 +31,7 @@ const ObjectList = ({
   setSelectedKeys,
 }: Props) => {
   const { bucketName } = useBucketContext();
+  const { canWrite } = usePermission();
   const { data, error, isLoading } = useBrowseObjects(bucketName, {
     prefix,
     limit: 1000,
@@ -72,7 +74,7 @@ const ObjectList = ({
       <Table>
         <Table.Head>
           <span className="flex items-center gap-2">
-            {allKeys.length > 0 && (
+            {canWrite && allKeys.length > 0 && (
               <input
                 type="checkbox"
                 className="checkbox checkbox-sm checkbox-primary"
@@ -118,13 +120,15 @@ const ObjectList = ({
             >
               <td>
                 <span className="flex items-center gap-2 font-normal">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-sm checkbox-primary"
-                    checked={selectedKeys.has(dirPrefix)}
-                    onClick={(e) => toggleSelect(dirPrefix, e)}
-                    readOnly
-                  />
+                  {canWrite && (
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm checkbox-primary"
+                      checked={selectedKeys.has(dirPrefix)}
+                      onClick={(e) => toggleSelect(dirPrefix, e)}
+                      readOnly
+                    />
+                  )}
                   <span
                     className="flex items-center gap-2 cursor-pointer flex-1"
                     role="button"
@@ -158,13 +162,15 @@ const ObjectList = ({
               >
                 <td>
                   <span className="flex items-center font-normal w-full">
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-sm checkbox-primary mr-2"
-                      checked={selectedKeys.has(object.objectKey)}
-                      onClick={(e) => toggleSelect(object.objectKey, e)}
-                      readOnly
-                    />
+                    {canWrite && (
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-sm checkbox-primary mr-2"
+                        checked={selectedKeys.has(object.objectKey)}
+                        onClick={(e) => toggleSelect(object.objectKey, e)}
+                        readOnly
+                      />
+                    )}
                     <span
                       className="flex items-center cursor-pointer flex-1"
                       role="button"
