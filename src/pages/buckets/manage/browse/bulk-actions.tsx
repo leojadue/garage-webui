@@ -35,40 +35,29 @@ const BulkActions = ({ selectedKeys, setSelectedKeys, prefix }: Props) => {
   const count = selectedKeys.size;
   const hasFolders = [...selectedKeys].some((k) => k.endsWith("/"));
 
-  const onConfirmDelete = () => {
+  const onConfirmDelete = async () => {
     setDeleting(true);
-    let completed = 0;
-    let failed = 0;
-    selectedKeys.forEach((key) => {
-      const isDir = key.endsWith("/");
-      deleteObject.mutate(
-        { key: prefix + key, recursive: isDir },
-        {
-          onSuccess: () => {
-            completed++;
-            if (completed + failed === count) {
-              if (failed > 0) {
-                toast.warning(`${completed} deleted, ${failed} failed`);
-              } else {
-                toast.success(`${count} item${count > 1 ? "s" : ""} deleted`);
-              }
-              setSelectedKeys(new Set());
-              setConfirmOpen(false);
-              setDeleting(false);
-            }
-          },
-          onError: () => {
-            failed++;
-            if (completed + failed === count) {
-              toast.error(`${failed} of ${count} deletions failed`);
-              setSelectedKeys(new Set());
-              setConfirmOpen(false);
-              setDeleting(false);
-            }
-          },
-        }
-      );
-    });
+    const keys = [...selectedKeys];
+    const results = await Promise.allSettled(
+      keys.map((key) => {
+        const isDir = key.endsWith("/");
+        return deleteObject.mutateAsync({ key: prefix + key, recursive: isDir });
+      })
+    );
+
+    const succeeded = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    if (failed > 0) {
+      toast.warning(`${succeeded} deleted, ${failed} failed`);
+    } else {
+      toast.success(`${count} item${count > 1 ? "s" : ""} deleted`);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["browse", bucketName] });
+    setSelectedKeys(new Set());
+    setConfirmOpen(false);
+    setDeleting(false);
   };
 
   return (
