@@ -30,6 +30,9 @@ func HandleApiRouter() *http.ServeMux {
 	presign := &Presign{}
 	router.HandleFunc("GET /presign/{bucket}/{key...}", presign.GetPresignedURL)
 
+	objects := &Objects{}
+	router.HandleFunc("POST /objects/copy", objects.CopyObject)
+
 	// Proxy request to garage api endpoint
 	router.HandleFunc("/", ProxyHandler)
 

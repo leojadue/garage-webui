@@ -1,7 +1,14 @@
 import { Dropdown } from "react-daisyui";
 import { Object } from "./types";
 import Button from "@/components/ui/button";
-import { DownloadIcon, EllipsisVertical, Share2, Trash } from "lucide-react";
+import {
+  DownloadIcon,
+  EllipsisVertical,
+  FolderInput,
+  Pencil,
+  Share2,
+  Trash,
+} from "lucide-react";
 import { useDeleteObject } from "./hooks";
 import { useBucketContext } from "../context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +16,8 @@ import { toast } from "sonner";
 import { handleError } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
 import { shareDialog } from "./share-dialog";
+import { renameDialog } from "./rename-dialog";
+import { moveDialog } from "./move-dialog";
 
 type Props = {
   prefix?: string;
@@ -60,19 +69,43 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
             <Button icon={EllipsisVertical} color="ghost" />
           </Dropdown.Toggle>
 
-          <Dropdown.Menu className="gap-y-1">
+          <Dropdown.Menu className="gap-y-1 min-w-[160px]">
+            {!isDirectory && (
+              <Dropdown.Item
+                onClick={() =>
+                  shareDialog.open({ key: object.objectKey, prefix })
+                }
+              >
+                <Share2 size={16} /> Share
+              </Dropdown.Item>
+            )}
             <Dropdown.Item
               onClick={() =>
-                shareDialog.open({ key: object.objectKey, prefix })
+                renameDialog.open({
+                  key: object.objectKey,
+                  prefix,
+                  isDirectory,
+                })
               }
             >
-              <Share2 /> Share
+              <Pencil size={16} /> Rename
+            </Dropdown.Item>
+            <Dropdown.Item
+              onClick={() =>
+                moveDialog.open({
+                  key: object.objectKey,
+                  prefix,
+                  isDirectory,
+                })
+              }
+            >
+              <FolderInput size={16} /> Move to...
             </Dropdown.Item>
             <Dropdown.Item
               className="text-error bg-error/10"
               onClick={onDelete}
             >
-              <Trash /> Delete
+              <Trash size={16} /> Delete
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
