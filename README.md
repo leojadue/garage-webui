@@ -43,9 +43,13 @@ A **production-ready** web console for [Garage](https://garagehq.deuxfleurs.fr/)
 |:---------:|:-------:|:--------------:|
 | [![](misc/img/home.png)](misc/img/home.png) | [![](misc/img/buckets.png)](misc/img/buckets.png) | [![](misc/img/buckets-browse.png)](misc/img/buckets-browse.png) |
 
-| Presigned Sharing | Cluster | Access Keys |
-|:-----------------:|:-------:|:-----------:|
-| [![](misc/img/buckets-browse-sharing.png)](misc/img/buckets-browse-sharing.png) | [![](misc/img/cluster.png)](misc/img/cluster.png) | [![](misc/img/keys.png)](misc/img/keys.png) |
+| Presigned Sharing | File Preview |
+|:-----------------:|:------------:|
+| [![](misc/img/buckets-browse-sharing.png)](misc/img/buckets-browse-sharing.png) | [![](misc/img/file-preview-image.png)](misc/img/file-preview-image.png) |
+
+| Cluster | Access Keys |
+|:-------:|:-----------:|
+| [![](misc/img/cluster.png)](misc/img/cluster.png) | [![](misc/img/keys.png)](misc/img/keys.png) |
 
 <details>
 <summary>Mobile Views</summary>
