@@ -18,9 +18,16 @@ import GotoTopButton from "@/components/ui/goto-top-btn";
 type Props = {
   prefix?: string;
   onPrefixChange?: (prefix: string) => void;
+  selectedKeys: Set<string>;
+  setSelectedKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
 };
 
-const ObjectList = ({ prefix, onPrefixChange }: Props) => {
+const ObjectList = ({
+  prefix,
+  onPrefixChange,
+  selectedKeys,
+  setSelectedKeys,
+}: Props) => {
   const { bucketName } = useBucketContext();
   const { data, error, isLoading } = useBrowseObjects(bucketName, {
     prefix,
@@ -31,11 +38,49 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
     window.open(API_URL + object.url + "?view=1", "_blank");
   };
 
+  const allKeys = [
+    ...(data?.prefixes || []),
+    ...(data?.objects?.map((o) => o.objectKey) || []),
+  ];
+
+  const allSelected = allKeys.length > 0 && allKeys.every((k) => selectedKeys.has(k));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedKeys(new Set());
+    } else {
+      setSelectedKeys(new Set(allKeys));
+    }
+  };
+
+  const toggleSelect = (key: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="overflow-x-auto min-h-[400px]">
       <Table>
         <Table.Head>
-          <span>Name</span>
+          <span className="flex items-center gap-2">
+            {allKeys.length > 0 && (
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm checkbox-primary"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+              />
+            )}
+            Name
+          </span>
           <span>Size</span>
           <span>Last Modified</span>
         </Table.Head>
@@ -43,7 +88,7 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
         <Table.Body>
           {isLoading ? (
             <tr>
-              <td colSpan={3}>
+              <td colSpan={4}>
                 <div className="h-[320px] flex items-center justify-center">
                   <Loading />
                 </div>
@@ -51,7 +96,7 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
             </tr>
           ) : error ? (
             <tr>
-              <td colSpan={3}>
+              <td colSpan={4}>
                 <Alert status="error" icon={<CircleXIcon />}>
                   <span>{error.message}</span>
                 </Alert>
@@ -59,32 +104,41 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
             </tr>
           ) : !data?.prefixes?.length && !data?.objects?.length ? (
             <tr>
-              <td className="text-center py-16" colSpan={3}>
+              <td className="text-center py-16" colSpan={4}>
                 No objects
               </td>
             </tr>
           ) : null}
 
-          {data?.prefixes.map((prefix) => (
+          {data?.prefixes.map((dirPrefix) => (
             <tr
-              key={prefix}
+              key={dirPrefix}
               className="hover:bg-neutral/60 hover:text-neutral-content group"
             >
-              <td
-                className="cursor-pointer"
-                role="button"
-                onClick={() => onPrefixChange?.(prefix)}
-              >
+              <td>
                 <span className="flex items-center gap-2 font-normal">
-                  <Folder size={20} className="text-primary" />
-                  {prefix
-                    .substring(0, prefix.lastIndexOf("/"))
-                    .split("/")
-                    .pop()}
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm checkbox-primary"
+                    checked={selectedKeys.has(dirPrefix)}
+                    onClick={(e) => toggleSelect(dirPrefix, e)}
+                    readOnly
+                  />
+                  <span
+                    className="flex items-center gap-2 cursor-pointer flex-1"
+                    role="button"
+                    onClick={() => onPrefixChange?.(dirPrefix)}
+                  >
+                    <Folder size={20} className="text-primary" />
+                    {dirPrefix
+                      .substring(0, dirPrefix.lastIndexOf("/"))
+                      .split("/")
+                      .pop()}
+                  </span>
                 </span>
               </td>
               <td colSpan={2} />
-              <ObjectActions object={{ objectKey: prefix, url: "" }} />
+              <ObjectActions object={{ objectKey: dirPrefix, url: "" }} />
             </tr>
           ))}
 
@@ -101,15 +155,24 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
                 key={object.objectKey}
                 className="hover:bg-neutral/60 hover:text-neutral-content group"
               >
-                <td
-                  className="cursor-pointer"
-                  role="button"
-                  onClick={() => onObjectClick(object)}
-                >
+                <td>
                   <span className="flex items-center font-normal w-full">
-                    <FilePreview ext={ext?.substring(1)} object={object} />
-                    <span className="truncate max-w-[40vw]">{filename}</span>
-                    {ext && <span className="text-base-content/60">{ext}</span>}
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm checkbox-primary mr-2"
+                      checked={selectedKeys.has(object.objectKey)}
+                      onClick={(e) => toggleSelect(object.objectKey, e)}
+                      readOnly
+                    />
+                    <span
+                      className="flex items-center cursor-pointer flex-1"
+                      role="button"
+                      onClick={() => onObjectClick(object)}
+                    >
+                      <FilePreview ext={ext?.substring(1)} object={object} />
+                      <span className="truncate max-w-[40vw]">{filename}</span>
+                      {ext && <span className="text-base-content/60">{ext}</span>}
+                    </span>
                   </span>
                 </td>
                 <td className="whitespace-nowrap">

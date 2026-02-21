@@ -9,6 +9,7 @@ import { useBucketContext } from "../context";
 import ShareDialog from "./share-dialog";
 import RenameDialog from "./rename-dialog";
 import MoveDialog from "./move-dialog";
+import BulkActions from "./bulk-actions";
 
 const getInitialPrefixes = (searchParams: URLSearchParams) => {
   const prefix = searchParams.get("prefix");
@@ -26,12 +27,15 @@ const BrowseTab = () => {
     getInitialPrefixes(searchParams)
   );
   const [curPrefix, setCurPrefix] = useState(prefixHistory.length - 1);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const prefix = prefixHistory[curPrefix] || "";
     const newParams = new URLSearchParams(searchParams);
     newParams.set("prefix", prefix);
     setSearchParams(newParams);
+    // Clear selection when navigating
+    setSelectedKeys(new Set());
   }, [curPrefix]);
 
   const gotoPrefix = (prefix: string) => {
@@ -61,9 +65,17 @@ const BrowseTab = () => {
           actions={<Actions prefix={prefixHistory[curPrefix] || ""} />}
         />
 
+        <BulkActions
+          selectedKeys={selectedKeys}
+          setSelectedKeys={setSelectedKeys}
+          prefix={prefixHistory[curPrefix] || ""}
+        />
+
         <ObjectList
           prefix={prefixHistory[curPrefix] || ""}
           onPrefixChange={gotoPrefix}
+          selectedKeys={selectedKeys}
+          setSelectedKeys={setSelectedKeys}
         />
 
         <ShareDialog />
