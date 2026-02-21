@@ -27,12 +27,12 @@ const TEXT_EXTENSIONS = new Set([
   "css", "html", "htm", "py", "go", "sh", "bash", "sql", "log", "csv",
   "env", "toml", "ini", "cfg", "conf", "makefile", "dockerfile", "rs",
   "rb", "php", "java", "c", "cpp", "h", "hpp", "gitignore", "dockerignore",
-  "svg", "lock",
+  "lock",
 ]);
 
 const getFileCategory = (filename: string): FileCategory => {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
-  if (["jpg", "jpeg", "png", "gif", "webp", "ico", "bmp", "avif"].includes(ext))
+  if (["jpg", "jpeg", "png", "gif", "webp", "ico", "bmp", "avif", "svg"].includes(ext))
     return "image";
   if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
   if (["mp3", "wav", "flac", "aac", "m4a"].includes(ext)) return "audio";
