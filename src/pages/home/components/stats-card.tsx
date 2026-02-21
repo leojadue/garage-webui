@@ -17,20 +17,25 @@ const StatsCard = ({
   children,
 }: Props) => {
   return (
-    <div className="bg-base-100 rounded-box p-4 md:p-6 flex flex-row items-center">
-      <div className="shrink-0 w-[60px]">
-        <Icon size={32} />
+    <div className="bg-base-100 rounded-box p-3 md:p-4 flex flex-row items-center gap-2">
+      <div className="shrink-0">
+        <Icon size={22} className="opacity-60" />
       </div>
 
-      <div className="flex-1 truncate">
+      <div className="flex-1 min-w-0">
         {children != null ? (
           children
         ) : (
-          <p className={cn("flex-1 text-3xl font-bold", valueClassName)}>
+          <p
+            className={cn(
+              "text-lg md:text-xl font-bold truncate",
+              valueClassName
+            )}
+          >
             {typeof value === "undefined" ? "..." : value}
           </p>
         )}
-        <p className="text-sm mt-0.5 truncate">{title}</p>
+        <p className="text-xs opacity-50 truncate">{title}</p>
       </div>
     </div>
   );

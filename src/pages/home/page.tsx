@@ -61,7 +61,6 @@ const HomePage = () => {
           icon={Leaf}
           value={ucfirst(health?.status)}
           valueClassName={cn(
-            "text-lg",
             health?.status === "healthy"
               ? "text-success"
               : health?.status === "degraded"
