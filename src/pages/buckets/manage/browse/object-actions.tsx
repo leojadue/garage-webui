@@ -4,6 +4,7 @@ import Button from "@/components/ui/button";
 import {
   DownloadIcon,
   EllipsisVertical,
+  Eye,
   FolderInput,
   Pencil,
   Share2,
@@ -18,6 +19,7 @@ import { API_URL } from "@/lib/api";
 import { shareDialog } from "./share-dialog";
 import { renameDialog } from "./rename-dialog";
 import { moveDialog } from "./move-dialog";
+import { previewDialog } from "./preview-dialog";
 
 type Props = {
   prefix?: string;
@@ -70,6 +72,18 @@ const ObjectActions = ({ prefix = "", object, end }: Props) => {
           </Dropdown.Toggle>
 
           <Dropdown.Menu className="gap-y-1 min-w-[160px]">
+            {!isDirectory && (
+              <Dropdown.Item
+                onClick={() =>
+                  previewDialog.open({
+                    object: object as Object,
+                    prefix,
+                  })
+                }
+              >
+                <Eye size={16} /> Preview
+              </Dropdown.Item>
+            )}
             {!isDirectory && (
               <Dropdown.Item
                 onClick={() =>

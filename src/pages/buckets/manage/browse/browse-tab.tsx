@@ -10,6 +10,7 @@ import ShareDialog from "./share-dialog";
 import RenameDialog from "./rename-dialog";
 import MoveDialog from "./move-dialog";
 import BulkActions from "./bulk-actions";
+import PreviewDialog from "./preview-dialog";
 
 const getInitialPrefixes = (searchParams: URLSearchParams) => {
   const prefix = searchParams.get("prefix");
@@ -81,6 +82,7 @@ const BrowseTab = () => {
         <ShareDialog />
         <RenameDialog />
         <MoveDialog />
+        <PreviewDialog />
       </Card>
     </div>
   );

@@ -14,6 +14,7 @@ import {
 import { useBucketContext } from "../context";
 import ObjectActions from "./object-actions";
 import GotoTopButton from "@/components/ui/goto-top-btn";
+import { previewDialog } from "./preview-dialog";
 
 type Props = {
   prefix?: string;
@@ -35,7 +36,7 @@ const ObjectList = ({
   });
 
   const onObjectClick = (object: Object) => {
-    window.open(API_URL + object.url + "?view=1", "_blank");
+    previewDialog.open({ object, prefix: prefix || "" });
   };
 
   const allKeys = [
