@@ -86,7 +86,7 @@ func (l *Lifecycle) SetLifecycleConfig(w http.ResponseWriter, r *http.Request) {
 
 	// If no rules, delete the config
 	if len(config.Rules) == 0 {
-		client.DeleteBucketLifecycleConfiguration(context.Background(), &s3.DeleteBucketLifecycleConfigurationInput{
+		client.DeleteBucketLifecycle(context.Background(), &s3.DeleteBucketLifecycleInput{
 			Bucket: aws.String(bucket),
 		})
 		utils.ResponseSuccess(w, map[string]bool{"ok": true})
@@ -145,7 +145,7 @@ func (l *Lifecycle) DeleteLifecycleConfig(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	_, err = client.DeleteBucketLifecycleConfiguration(context.Background(), &s3.DeleteBucketLifecycleConfigurationInput{
+	_, err = client.DeleteBucketLifecycle(context.Background(), &s3.DeleteBucketLifecycleInput{
 		Bucket: aws.String(bucket),
 	})
 	if err != nil {
