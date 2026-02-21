@@ -147,6 +147,22 @@ Full UI for S3 lifecycle rule management:
 
 ## Screenshots
 
+### Multi-User RBAC
+
+| Users Management (Admin) | Create User Dialog |
+|:------------------------:|:------------------:|
+| [![](misc/img/users-table-two-users.png)](misc/img/users-table-two-users.png) | [![](misc/img/create-user-dialog.png)](misc/img/create-user-dialog.png) |
+
+| Admin View (5 menu items) | Viewer View (2 menu items) |
+|:--------------------------:|:--------------------------:|
+| [![](misc/img/sidebar-admin-rbac.png)](misc/img/sidebar-admin-rbac.png) | [![](misc/img/sidebar-viewer-rbac.png)](misc/img/sidebar-viewer-rbac.png) |
+
+| Browse as Admin (checkboxes, upload, delete) | Browse as Viewer (read-only) |
+|:--------------------------------------------:|:----------------------------:|
+| [![](misc/img/browse-admin-view.png)](misc/img/browse-admin-view.png) | [![](misc/img/browse-viewer-view.png)](misc/img/browse-viewer-view.png) |
+
+### General
+
 | Dashboard | Buckets | Object Browser |
 |:---------:|:-------:|:--------------:|
 | [![](misc/img/home.png)](misc/img/home.png) | [![](misc/img/buckets.png)](misc/img/buckets.png) | [![](misc/img/buckets-browse.png)](misc/img/buckets-browse.png) |
