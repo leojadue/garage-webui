@@ -27,6 +27,9 @@ func HandleApiRouter() *http.ServeMux {
 	router.HandleFunc("PUT /browse/{bucket}/{key...}", browse.PutObject)
 	router.HandleFunc("DELETE /browse/{bucket}/{key...}", browse.DeleteObject)
 
+	presign := &Presign{}
+	router.HandleFunc("GET /presign/{bucket}/{key...}", presign.GetPresignedURL)
+
 	// Proxy request to garage api endpoint
 	router.HandleFunc("/", ProxyHandler)
 
